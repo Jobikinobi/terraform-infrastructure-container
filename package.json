@@ -1,0 +1,34 @@
+{
+  "name": "terraform-infrastructure-container",
+  "version": "1.0.0",
+  "description": "Modular, portable Terraform infrastructure management in Cloudflare Workers - no Docker required",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "keywords": [
+    "terraform",
+    "cloudflare",
+    "workers",
+    "infrastructure",
+    "multicloud",
+    "auth0"
+  ],
+  "author": "joe@theholetruth.org",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0",
+    "wrangler": "^3.86.0"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  }
+}

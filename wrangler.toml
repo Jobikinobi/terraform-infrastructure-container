@@ -1,0 +1,84 @@
+# Wrangler Configuration for Terraform Infrastructure Container
+# This configuration defines a portable, self-contained Cloudflare Worker
+# for managing multi-cloud infrastructure via Terraform
+
+name = "terraform-infrastructure-container"
+main = "src/index.ts"
+compatibility_date = "2024-11-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Account configuration (update with your Cloudflare account)
+# account_id = "1a25a792e801e687b9fe4932030cf6a6"  # Uncomment and add your account ID
+
+# Worker configuration
+workers_dev = true  # Enable workers.dev subdomain for testing
+
+# Environment variables (use wrangler secrets for sensitive values)
+[vars]
+ENVIRONMENT = "development"
+PROJECT_NAME = "HOLE Foundation Infrastructure"
+MANAGED_BY = "terraform"
+
+# KV Namespaces for storing Terraform state and configuration
+# [[kv_namespaces]]
+# binding = "TERRAFORM_STATE"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"
+
+# [[kv_namespaces]]
+# binding = "TERRAFORM_CONFIG"
+# id = "your-config-kv-namespace-id"
+# preview_id = "your-preview-config-kv-namespace-id"
+
+# R2 Buckets for storing large files, backups, and artifacts
+# [[r2_buckets]]
+# binding = "TERRAFORM_ARTIFACTS"
+# bucket_name = "terraform-artifacts"
+# preview_bucket_name = "terraform-artifacts-preview"
+
+# D1 Database for tracking deployments and metadata
+# [[d1_databases]]
+# binding = "DEPLOYMENT_DB"
+# database_name = "terraform-deployments"
+# database_id = "your-d1-database-id"
+
+# Durable Objects for managing Terraform operations state
+# [[durable_objects.bindings]]
+# name = "TERRAFORM_EXECUTOR"
+# class_name = "TerraformExecutor"
+# script_name = "terraform-infrastructure-container"
+
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["TerraformExecutor"]
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# - CLOUDFLARE_API_TOKEN
+# - AUTH0_CLIENT_ID
+# - AUTH0_CLIENT_SECRET
+# - AUTH0_DOMAIN
+# - AZURE_CLIENT_ID
+# - AZURE_CLIENT_SECRET
+# - AZURE_TENANT_ID
+
+# Development environment
+[env.development]
+name = "terraform-infrastructure-container-dev"
+vars = { ENVIRONMENT = "development" }
+
+# Production environment
+[env.production]
+name = "terraform-infrastructure-container"
+vars = { ENVIRONMENT = "production" }
+workers_dev = false
+# routes = [
+#   { pattern = "terraform.theholetruth.org", custom_domain = true }
+# ]
+
+# Build configuration
+[build]
+command = "npm run build"
+
+# Observability
+[observability]
+enabled = true
