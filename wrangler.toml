@@ -20,27 +20,21 @@ PROJECT_NAME = "HOLE Foundation Infrastructure"
 MANAGED_BY = "terraform"
 
 # KV Namespaces for storing Terraform state and configuration
-# [[kv_namespaces]]
-# binding = "TERRAFORM_STATE"
-# id = "your-kv-namespace-id"
-# preview_id = "your-preview-kv-namespace-id"
-
-# [[kv_namespaces]]
-# binding = "TERRAFORM_CONFIG"
-# id = "your-config-kv-namespace-id"
-# preview_id = "your-preview-config-kv-namespace-id"
+[[kv_namespaces]]
+binding = "TERRAFORM_STATE"
+id = "519f7ebc18ee461fb5983da094cb1184"
+preview_id = "5f92d209e44f4e8883c51bf640a92e37"
 
 # R2 Buckets for storing large files, backups, and artifacts
-# [[r2_buckets]]
-# binding = "TERRAFORM_ARTIFACTS"
-# bucket_name = "terraform-artifacts"
-# preview_bucket_name = "terraform-artifacts-preview"
+[[r2_buckets]]
+binding = "TERRAFORM_ARTIFACTS"
+bucket_name = "terraform-artifacts"
 
 # D1 Database for tracking deployments and metadata
-# [[d1_databases]]
-# binding = "DEPLOYMENT_DB"
-# database_name = "terraform-deployments"
-# database_id = "your-d1-database-id"
+[[d1_databases]]
+binding = "DEPLOYMENT_DB"
+database_name = "terraform-deployments"
+database_id = "4526be36-55b2-4c8c-9012-f94e00ea1556"
 
 # Durable Objects for managing Terraform operations state
 # [[durable_objects.bindings]]
