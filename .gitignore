@@ -74,3 +74,5 @@ Desktop.ini
 *~
 .directory
 .Trash-*
+terraform/.envrc
+terraform/tfplan
