@@ -36,6 +36,12 @@ binding = "DEPLOYMENT_DB"
 database_name = "terraform-deployments"
 database_id = "4526be36-55b2-4c8c-9012-f94e00ea1556"
 
+# VPC Services for private Azure resource access
+# Note: VPC binding syntax not yet finalized in Wrangler 4.50.0
+# VPC Service Created: 019ac2dc-3660-7990-a43e-9437e6c8a5b3
+# Tunnel ID: 01687264-7e9d-4c6a-af17-6891ca4f9021
+# Waiting for official binding syntax in future Wrangler release
+
 # Durable Objects for managing Terraform operations state
 # [[durable_objects.bindings]]
 # name = "TERRAFORM_EXECUTOR"

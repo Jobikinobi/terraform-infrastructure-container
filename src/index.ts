@@ -210,6 +210,39 @@ app.post('/api/artifacts/upload', async (c) => {
 });
 
 /**
+ * VPC Test Endpoint
+ * Tests private Azure resource access via VPC
+ */
+app.get('/api/vpc/test', async (c) => {
+	if (!c.env.AZURE_VPC) {
+		return c.json({
+			error: 'VPC not configured',
+			message: 'AZURE_VPC binding not available. VPC service may not be deployed.',
+			status: 'not_configured',
+		}, 503);
+	}
+
+	try {
+		// Test VPC connection
+		const result = await c.env.AZURE_VPC.fetch('https://azure.internal/health');
+
+		return c.json({
+			message: 'VPC connection successful',
+			vpc_service: 'azure-private-resources',
+			status: 'connected',
+			response_status: result.status,
+		});
+	} catch (error) {
+		return c.json({
+			error: 'VPC connection failed',
+			message: error.message,
+			status: 'tunnel_not_running',
+			note: 'Tunnel connector needs to be running in Azure VNet',
+		}, 503);
+	}
+});
+
+/**
  * 404 handler
  */
 app.notFound((c) => {
@@ -225,6 +258,7 @@ app.notFound((c) => {
 			'POST /api/terraform/apply',
 			'GET /api/deployments',
 			'POST /api/artifacts/upload',
+			'GET /api/vpc/test',
 		],
 	}, 404);
 });
