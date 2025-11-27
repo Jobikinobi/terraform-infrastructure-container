@@ -12,6 +12,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
+import * as ServicesAPI from './services-api';
 
 // Type definitions for Cloudflare Worker bindings
 type Bindings = {
@@ -243,6 +244,46 @@ app.get('/api/vpc/test', async (c) => {
 });
 
 /**
+ * ========================================
+ * Infrastructure-as-a-Service API Endpoints
+ * ========================================
+ */
+
+/**
+ * Service Discovery
+ * Lists all available infrastructure services
+ */
+app.get('/api/services', ServicesAPI.getServices);
+
+/**
+ * Auth0 Configuration Service
+ */
+app.get('/api/auth0/config/:project', ServicesAPI.getAuth0Config);
+app.get('/api/auth0/clients', ServicesAPI.listAuth0Clients);
+
+/**
+ * Cloudflare Resources Service
+ */
+app.get('/api/cloudflare/resources/:project', ServicesAPI.getCloudflareResources);
+
+/**
+ * DNS Service
+ */
+app.get('/api/dns/zone/:domain', ServicesAPI.getDNSZone);
+
+/**
+ * Project Configuration
+ */
+app.get('/api/projects/:project', ServicesAPI.getProjectConfig);
+app.get('/api/projects', ServicesAPI.listProjects);
+
+/**
+ * ========================================
+ * GitHub Integration
+ * ========================================
+ */
+
+/**
  * GitHub Webhook Handler
  * Processes events from GitHub (push, issues, PRs, etc.)
  */
@@ -405,18 +446,44 @@ app.notFound((c) => {
 	return c.json({
 		error: 'Not Found',
 		message: 'The requested endpoint does not exist',
-		availableEndpoints: [
-			'GET /',
-			'GET /api/info',
-			'GET /api/terraform/state',
-			'GET /api/terraform/resources',
-			'POST /api/terraform/plan',
-			'POST /api/terraform/apply',
-			'GET /api/deployments',
-			'POST /api/artifacts/upload',
-			'GET /api/vpc/test',
-			'POST /api/github/webhook',
-		],
+		availableEndpoints: {
+			core: [
+				'GET /',
+				'GET /api/info',
+			],
+			services: [
+				'GET /api/services',
+				'GET /api/projects',
+				'GET /api/projects/:project',
+			],
+			auth0: [
+				'GET /api/auth0/config/:project',
+				'GET /api/auth0/clients',
+			],
+			cloudflare: [
+				'GET /api/cloudflare/resources/:project',
+			],
+			dns: [
+				'GET /api/dns/zone/:domain',
+			],
+			terraform: [
+				'GET /api/terraform/state',
+				'GET /api/terraform/resources',
+				'POST /api/terraform/plan',
+				'POST /api/terraform/apply',
+			],
+			deployments: [
+				'GET /api/deployments',
+			],
+			github: [
+				'POST /api/github/webhook',
+			],
+			other: [
+				'POST /api/artifacts/upload',
+				'GET /api/vpc/test',
+			]
+		},
+		documentation: 'https://github.com/Jobikinobi/terraform-infrastructure-container'
 	}, 404);
 });
 
