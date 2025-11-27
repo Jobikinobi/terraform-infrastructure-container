@@ -37,10 +37,10 @@ terraform {
       version = "~> 1.0"  # Use latest 1.x version
     }
 
-    # github = {
-    #   source  = "integrations/github"
-    #   version = "~> 6.0"  # Use latest 6.x version
-    # }
+    github = {
+      source  = "integrations/github"
+      version = "~> 6.0"  # Use latest 6.x version
+    }
 
   }
 }
@@ -280,17 +280,16 @@ provider "auth0" {
 
 # GitHub Provider Configuration
 # For repository, team, and automation management
-# COMMENTED OUT: Enable when you're ready to manage GitHub resources
-# provider "github" {
-#   token = var.github_token
-#   owner = var.github_organization  # or individual username
-#
-#   # Alternative: GitHub App authentication (more secure for production)
-#   # app_auth {
-#   #   id              = var.github_app_id
-#   #   installation_id = var.github_installation_id
-#   #   pem_file        = var.github_app_pem_file
-#   # }
-# }
+provider "github" {
+  token = var.github_token
+  owner = "Jobikinobi"  # Your GitHub username
+
+  # Alternative: GitHub App authentication (more secure for production)
+  # app_auth {
+  #   id              = var.github_app_id
+  #   installation_id = var.github_installation_id
+  #   pem_file        = var.github_app_pem_file
+  # }
+}
 
 
