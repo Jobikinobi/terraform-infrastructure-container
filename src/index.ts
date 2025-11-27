@@ -243,6 +243,162 @@ app.get('/api/vpc/test', async (c) => {
 });
 
 /**
+ * GitHub Webhook Handler
+ * Processes events from GitHub (push, issues, PRs, etc.)
+ */
+app.post('/api/github/webhook', async (c) => {
+	const eventType = c.req.header('X-GitHub-Event');
+	const deliveryId = c.req.header('X-GitHub-Delivery');
+
+	if (!eventType) {
+		return c.json({ error: 'Missing X-GitHub-Event header' }, 400);
+	}
+
+	try {
+		const payload = await c.req.json();
+
+		// Ensure repository exists in D1 (for foreign key)
+		if (c.env.DEPLOYMENT_DB && payload.repository) {
+			await c.env.DEPLOYMENT_DB.prepare(
+				'INSERT OR IGNORE INTO github_repositories (repo_id, repo_name, repo_full_name, description, visibility, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+			).bind(
+				payload.repository.id,
+				payload.repository.name,
+				payload.repository.full_name,
+				payload.repository.description || '',
+				payload.repository.private ? 'private' : 'public',
+				new Date().toISOString()
+			).run();
+		}
+
+		// Log webhook event to D1
+		if (c.env.DEPLOYMENT_DB) {
+			await c.env.DEPLOYMENT_DB.prepare(
+				'INSERT INTO webhook_events (event_id, event_type, source, repo_full_name, payload, received_at) VALUES (?, ?, ?, ?, ?, ?)'
+			).bind(
+				deliveryId || `${Date.now()}`,
+				eventType,
+				'github',
+				payload.repository?.full_name || null,
+				JSON.stringify(payload),
+				new Date().toISOString()
+			).run();
+		}
+
+		// Handle specific event types
+		switch (eventType) {
+			case 'push':
+				await handlePushEvent(c, payload);
+				break;
+			case 'issues':
+				await handleIssueEvent(c, payload);
+				break;
+			case 'pull_request':
+				await handlePullRequestEvent(c, payload);
+				break;
+			case 'ping':
+				return c.json({ message: 'Webhook configured successfully!', pong: true });
+			default:
+				console.log(`Received ${eventType} event (not yet handled)`);
+		}
+
+		return c.json({
+			received: true,
+			eventType,
+			deliveryId,
+			repository: payload.repository?.full_name
+		});
+
+	} catch (error) {
+		console.error('Webhook error:', error);
+		return c.json({ error: 'Webhook processing failed', message: error.message }, 500);
+	}
+});
+
+/**
+ * Handle push events (commits pushed to repository)
+ */
+async function handlePushEvent(c: any, payload: any) {
+	if (!c.env.DEPLOYMENT_DB) return;
+
+	const commit = payload.head_commit;
+	if (!commit) return;
+
+	// Log git event
+	await c.env.DEPLOYMENT_DB.prepare(
+		'INSERT INTO git_events (event_id, event_type, repo_full_name, branch, commit_sha, commit_message, author, author_email, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+	).bind(
+		commit.id,
+		'push',
+		payload.repository.full_name,
+		payload.ref.replace('refs/heads/', ''),
+		commit.id,
+		commit.message,
+		commit.author.name,
+		commit.author.email,
+		new Date().toISOString()
+	).run();
+
+	console.log(`Push event logged: ${commit.message} by ${commit.author.name}`);
+
+	// TODO: Trigger deployment if push to main
+	if (payload.ref === 'refs/heads/main') {
+		console.log('Push to main detected - deployment trigger pending implementation');
+	}
+}
+
+/**
+ * Handle issue events (issues opened, closed, etc.)
+ */
+async function handleIssueEvent(c: any, payload: any) {
+	if (!c.env.DEPLOYMENT_DB) return;
+
+	const issue = payload.issue;
+	const action = payload.action;
+
+	if (action === 'opened') {
+		// Store new task
+		await c.env.DEPLOYMENT_DB.prepare(
+			'INSERT INTO project_tasks (task_id, repo_full_name, title, body, state, assignee, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+		).bind(
+			issue.number,
+			payload.repository.full_name,
+			issue.title,
+			issue.body || '',
+			issue.state,
+			issue.assignee?.login || null,
+			new Date().toISOString()
+		).run();
+
+		// Store labels
+		if (issue.labels && issue.labels.length > 0) {
+			for (const label of issue.labels) {
+				await c.env.DEPLOYMENT_DB.prepare(
+					'INSERT OR IGNORE INTO task_labels (task_id, label_name, label_color) VALUES (?, ?, ?)'
+				).bind(issue.number, label.name, label.color).run();
+			}
+		}
+
+		console.log(`New issue #${issue.number} logged: ${issue.title}`);
+	} else if (action === 'closed') {
+		// Update task status
+		await c.env.DEPLOYMENT_DB.prepare(
+			'UPDATE project_tasks SET state = ?, status = ?, closed_at = ?, updated_at = ? WHERE task_id = ? AND repo_full_name = ?'
+		).bind('closed', 'done', new Date().toISOString(), new Date().toISOString(), issue.number, payload.repository.full_name).run();
+
+		console.log(`Issue #${issue.number} closed`);
+	}
+}
+
+/**
+ * Handle pull request events
+ */
+async function handlePullRequestEvent(c: any, payload: any) {
+	console.log(`PR ${payload.action}: ${payload.pull_request.title}`);
+	// TODO: Implement PR tracking
+}
+
+/**
  * 404 handler
  */
 app.notFound((c) => {
@@ -259,6 +415,7 @@ app.notFound((c) => {
 			'GET /api/deployments',
 			'POST /api/artifacts/upload',
 			'GET /api/vpc/test',
+			'POST /api/github/webhook',
 		],
 	}, 404);
 });
