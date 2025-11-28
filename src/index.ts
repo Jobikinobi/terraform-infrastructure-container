@@ -61,12 +61,14 @@ app.use('*', cors({
 app.get('/', (c) => {
 	return c.json({
 		status: 'healthy',
-		service: 'terraform-infrastructure-container',
+		service: 'HOLE Substrate',
+		tagline: 'The foundational infrastructure layer for HOLE Foundation',
 		environment: c.env.ENVIRONMENT || 'unknown',
-		project: c.env.PROJECT_NAME || 'HOLE Foundation Infrastructure',
 		version: '1.0.0',
-		runtime: 'Cloudflare Workers (Workerd)',
-		message: 'Portable Terraform infrastructure management - No Docker required!',
+		runtime: 'Cloudflare Workers (V8)',
+		message: 'Infrastructure-as-a-Service for all HOLE Foundation projects',
+		url: 'https://substrate.theholefoundation.org',
+		documentation: 'https://github.com/Jobikinobi/terraform-infrastructure-container'
 	});
 });
 

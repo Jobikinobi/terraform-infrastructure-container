@@ -5,7 +5,7 @@
 # This makes the repo manageable by Terraform
 resource "github_repository" "terraform_container" {
   name        = "terraform-infrastructure-container"
-  description = "Portable, Docker-free Terraform infrastructure management with Cloudflare Workers - Unified development lifecycle system"
+  description = "HOLE Substrate - The foundational infrastructure layer for HOLE Foundation. V8-powered multi-cloud orchestration, unified project tracking, and infrastructure-as-a-service for all HOLE projects."
 
   visibility = "public"
 
@@ -27,7 +27,10 @@ resource "github_repository" "terraform_container" {
     "portable",
     "v8-isolates",
     "project-management",
-    "devops"
+    "devops",
+    "substrate",
+    "iaas",
+    "hole-foundation"
   ]
 
   # Repository settings
@@ -41,7 +44,7 @@ resource "github_repository" "terraform_container" {
   vulnerability_alerts = true
 
   # Homepage
-  homepage_url = "https://terraform-infrastructure-container.joe-1a2.workers.dev"
+  homepage_url = "https://hole-substrate.joe-1a2.workers.dev"
 
   # Archive on delete instead of destroying
   archive_on_destroy = true

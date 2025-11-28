@@ -1,8 +1,8 @@
-# Wrangler Configuration for Terraform Infrastructure Container
-# This configuration defines a portable, self-contained Cloudflare Worker
-# for managing multi-cloud infrastructure via Terraform
+# HOLE Substrate - Infrastructure Service Configuration
+# The foundational infrastructure layer for all HOLE Foundation projects
+# V8-powered multi-cloud orchestration and infrastructure-as-a-service
 
-name = "terraform-infrastructure-container"
+name = "hole-substrate"
 main = "src/index.ts"
 compatibility_date = "2024-11-23"
 compatibility_flags = ["nodejs_compat"]

@@ -1,7 +1,7 @@
 {
-  "name": "terraform-infrastructure-container",
+  "name": "@hole-foundation/substrate",
   "version": "1.0.0",
-  "description": "Modular, portable Terraform infrastructure management in Cloudflare Workers - no Docker required",
+  "description": "HOLE Substrate - The foundational infrastructure layer for all HOLE Foundation projects. V8-powered multi-cloud orchestration, unified project tracking, and infrastructure-as-a-service.",
   "main": "src/index.ts",
   "type": "module",
   "scripts": {

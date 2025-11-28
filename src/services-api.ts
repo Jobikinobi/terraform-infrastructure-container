@@ -11,7 +11,8 @@ import { Context } from 'hono';
  */
 export async function getServices(c: Context) {
 	return c.json({
-		name: 'HOLE Foundation Infrastructure Service',
+		name: 'HOLE Substrate',
+		tagline: 'The foundational infrastructure layer for HOLE Foundation',
 		version: '1.0.0',
 		available_services: {
 			auth: {
