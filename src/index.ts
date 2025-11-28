@@ -13,6 +13,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import * as ServicesAPI from './services-api';
+import { renderDashboard } from './dashboard';
 
 // Type definitions for Cloudflare Worker bindings
 type Bindings = {
@@ -278,6 +279,18 @@ app.get('/api/dns/zone/:domain', ServicesAPI.getDNSZone);
  */
 app.get('/api/projects/:project', ServicesAPI.getProjectConfig);
 app.get('/api/projects', ServicesAPI.listProjects);
+
+/**
+ * ========================================
+ * Dashboard
+ * ========================================
+ */
+
+/**
+ * Visual Dashboard
+ * HTML interface for viewing system status
+ */
+app.get('/dashboard', renderDashboard);
 
 /**
  * ========================================

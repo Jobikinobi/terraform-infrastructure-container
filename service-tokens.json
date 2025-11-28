@@ -1,0 +1,12 @@
+{
+  "theholetruth-org-v2": {
+    "client_id": "affdf8d9a5a4c806c70a47c0801590dd.access",
+    "client_secret": "67d025b330518dea73de1f1852cc49628754c48d62d3d06329967901ed5a653c",
+    "project": "theholetruth-org-v2",
+    "description": "Service token for theholetruth.org v2 to access Substrate API",
+    "created": "2025-11-27"
+  },
+  "substrate": {
+    "audience_tag": "7ff0f727c51437f4bff163e44e32c15eec98f8eaf961c517397f1a799f621bdb"
+  }
+}
