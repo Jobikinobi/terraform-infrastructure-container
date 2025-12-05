@@ -27,6 +27,10 @@ type Bindings = {
 	AUTH0_CLIENT_SECRET?: string;
 	AUTH0_DOMAIN?: string;
 
+	// Security secrets
+	GITHUB_WEBHOOK_SECRET?: string;
+	CF_ACCESS_AUD?: string;
+
 	// KV Namespaces (when configured)
 	TERRAFORM_STATE?: KVNamespace;
 	TERRAFORM_CONFIG?: KVNamespace;
@@ -38,6 +42,107 @@ type Bindings = {
 	DEPLOYMENT_DB?: D1Database;
 };
 
+// ============================================================================
+// SECURITY UTILITIES
+// ============================================================================
+
+/**
+ * Verify GitHub webhook signature using HMAC-SHA256
+ * @see https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+ */
+async function verifyGitHubWebhook(body: string, signature: string | null, secret: string): Promise<boolean> {
+	if (!signature || !secret) return false;
+
+	try {
+		const key = await crypto.subtle.importKey(
+			'raw',
+			new TextEncoder().encode(secret),
+			{ name: 'HMAC', hash: 'SHA-256' },
+			false,
+			['sign']
+		);
+
+		const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
+		const expectedSignature = 'sha256=' + Array.from(new Uint8Array(sig))
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
+
+		// Use timing-safe comparison
+		if (signature.length !== expectedSignature.length) return false;
+
+		let result = 0;
+		for (let i = 0; i < signature.length; i++) {
+			result |= signature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+		}
+		return result === 0;
+	} catch (error) {
+		console.error('Webhook signature verification failed:', error);
+		return false;
+	}
+}
+
+/**
+ * Verify Cloudflare Access JWT (defense-in-depth)
+ * @see https://developers.cloudflare.com/cloudflare-one/identity/authorization-cookie/validating-json/
+ */
+async function verifyAccessJWT(request: Request, aud: string | undefined): Promise<{ valid: boolean; identity?: string }> {
+	const jwt = request.headers.get('CF-Access-JWT-Assertion');
+
+	if (!jwt) {
+		return { valid: false };
+	}
+
+	// If no AUD configured, just check that the header exists (Access is in front)
+	if (!aud) {
+		return { valid: true, identity: 'access-authenticated' };
+	}
+
+	try {
+		// Decode JWT (without full verification - Access already verified it)
+		const parts = jwt.split('.');
+		if (parts.length !== 3) return { valid: false };
+
+		const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+
+		// Verify audience matches our application
+		if (payload.aud && Array.isArray(payload.aud) && !payload.aud.includes(aud)) {
+			console.warn('JWT audience mismatch');
+			return { valid: false };
+		}
+
+		// Check expiration
+		if (payload.exp && payload.exp < Date.now() / 1000) {
+			console.warn('JWT expired');
+			return { valid: false };
+		}
+
+		return {
+			valid: true,
+			identity: payload.email || payload.sub || 'unknown'
+		};
+	} catch (error) {
+		console.error('JWT verification failed:', error);
+		return { valid: false };
+	}
+}
+
+/**
+ * Get authenticated user identity from Access JWT
+ */
+function getAccessIdentity(request: Request): string | null {
+	const jwt = request.headers.get('CF-Access-JWT-Assertion');
+	if (!jwt) return null;
+
+	try {
+		const parts = jwt.split('.');
+		if (parts.length !== 3) return null;
+		const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+		return payload.email || payload.sub || null;
+	} catch {
+		return null;
+	}
+}
+
 // Initialize Hono app with type-safe bindings
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -47,9 +152,59 @@ app.use('*', prettyJSON());
 app.use('*', cors({
 	origin: ['https://theholetruth.org', 'https://theholefoundation.org', 'http://localhost:*'],
 	allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-	allowHeaders: ['Content-Type', 'Authorization'],
+	allowHeaders: ['Content-Type', 'Authorization', 'CF-Access-JWT-Assertion'],
 	credentials: true,
 }));
+
+/**
+ * Security middleware for protected API routes
+ * Verifies Cloudflare Access JWT when in production
+ * Skips verification for:
+ * - Health check (/)
+ * - GitHub webhooks (/api/github/webhook) - uses signature verification instead
+ * - Development environment
+ */
+app.use('/api/*', async (c, next) => {
+	const path = c.req.path;
+
+	// Skip Access verification for webhook endpoint (uses signature verification)
+	if (path === '/api/github/webhook') {
+		return next();
+	}
+
+	// In development, skip Access verification
+	if (c.env.ENVIRONMENT === 'development') {
+		return next();
+	}
+
+	// Verify Cloudflare Access JWT
+	const { valid, identity } = await verifyAccessJWT(c.req.raw, c.env.CF_ACCESS_AUD);
+
+	if (!valid) {
+		// Check if Access JWT header exists at all
+		const hasAccessHeader = c.req.header('CF-Access-JWT-Assertion');
+
+		if (!hasAccessHeader) {
+			// No Access header - request didn't come through Zero Trust
+			return c.json({
+				error: 'Unauthorized',
+				message: 'This endpoint requires Cloudflare Zero Trust authentication',
+				hint: 'Access this URL through the Cloudflare Access portal'
+			}, 401);
+		}
+
+		// Has header but verification failed
+		return c.json({
+			error: 'Forbidden',
+			message: 'Access token verification failed'
+		}, 403);
+	}
+
+	// Add identity to request context for logging
+	c.set('identity', identity);
+
+	await next();
+});
 
 // ============================================================================
 // ROUTES
@@ -286,17 +441,46 @@ app.get('/api/projects', ServicesAPI.listProjects);
 /**
  * GitHub Webhook Handler
  * Processes events from GitHub (push, issues, PRs, etc.)
+ *
+ * Security: Verifies webhook signature using HMAC-SHA256
+ * @see https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
  */
 app.post('/api/github/webhook', async (c) => {
 	const eventType = c.req.header('X-GitHub-Event');
 	const deliveryId = c.req.header('X-GitHub-Delivery');
+	const signature = c.req.header('X-Hub-Signature-256');
 
 	if (!eventType) {
 		return c.json({ error: 'Missing X-GitHub-Event header' }, 400);
 	}
 
+	// Get raw body for signature verification
+	const rawBody = await c.req.text();
+
+	// Verify webhook signature in production
+	if (c.env.ENVIRONMENT !== 'development') {
+		if (!c.env.GITHUB_WEBHOOK_SECRET) {
+			console.error('GITHUB_WEBHOOK_SECRET not configured - rejecting webhook');
+			return c.json({
+				error: 'Webhook secret not configured',
+				message: 'Server configuration error - contact administrator'
+			}, 500);
+		}
+
+		const isValid = await verifyGitHubWebhook(rawBody, signature, c.env.GITHUB_WEBHOOK_SECRET);
+
+		if (!isValid) {
+			console.warn(`Invalid webhook signature for delivery ${deliveryId}`);
+			return c.json({
+				error: 'Invalid signature',
+				message: 'Webhook signature verification failed'
+			}, 401);
+		}
+	}
+
 	try {
-		const payload = await c.req.json();
+		// Parse the verified payload
+		const payload = JSON.parse(rawBody);
 
 		// Ensure repository exists in D1 (for foreign key)
 		if (c.env.DEPLOYMENT_DB && payload.repository) {
